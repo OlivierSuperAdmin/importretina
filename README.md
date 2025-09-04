@@ -46,13 +46,19 @@ npm install --save-dev gh-pages
 npm run deploy
 ```
 
-### Option 2: Netlify
+### Option 2: Render (recommandé)
+
+1. Connectez votre repository GitHub à Render
+2. Le déploiement est automatique avec les fichiers `render.yaml` et `render.json`
+3. Votre app sera disponible sur https://importretina.onrender.com
+
+### Option 3: Netlify
 
 1. Connectez votre repository GitHub à Netlify
 2. Build command: `npm run build`
 3. Publish directory: `dist`
 
-### Option 3: Vercel
+### Option 4: Vercel
 
 ```bash
 # Installer Vercel CLI
