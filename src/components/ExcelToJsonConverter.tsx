@@ -1,15 +1,29 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
+import confetti from 'canvas-confetti';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
-import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, TrendingUp, MapPin } from 'lucide-react';
+
+interface Summary {
+  totalQuantity: number;
+  departmentDistribution: {
+    Martinique: number;
+    Guadeloupe: number;
+    Guyane: number;
+    Réunion: number;
+  };
+  rowsProcessed: number;
+  details: any[];
+}
 
 const ExcelToJsonConverter: React.FC = () => {
   const [jsonData, setJsonData] = useState<any>(null);
   const [fileName, setFileName] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
+  const [summary, setSummary] = useState<Summary | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,9 +91,60 @@ const ExcelToJsonConverter: React.FC = () => {
       console.log('📨 Réponse:', response.status, responseText);
 
       if (response.ok) {
+        // Déclencher les confettis
+        confetti({
+          particleCount: 200,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444']
+        });
+
+        // Calculer le résumé
+        const dataArray = Array.isArray(payload.data) ? payload.data : 
+                         (payload.data && typeof payload.data === 'object' ? Object.values(payload.data).flat() : []);
+        
+        const summaryData: Summary = {
+          totalQuantity: 0,
+          departmentDistribution: {
+            Martinique: 0,
+            Guadeloupe: 0,
+            Guyane: 0,
+            Réunion: 0
+          },
+          rowsProcessed: dataArray.length,
+          details: dataArray
+        };
+
+        // Calculer la somme et la distribution
+        dataArray.forEach((row: any) => {
+          // Rechercher le champ quantité (différentes variantes possibles)
+          const quantity = row.quantité || row.quantite || row.Quantité || row.Quantite || row.quantity || row.Quantity || 0;
+          summaryData.totalQuantity += Number(quantity) || 0;
+
+          // Rechercher le département
+          const dept = (row.département || row.departement || row.Département || row.Departement || 
+                      row.region || row.Region || row.région || row.Région || '').toString();
+          
+          const deptLower = dept.toLowerCase();
+          
+          if (deptLower.includes('martinique') || dept === '972') {
+            summaryData.departmentDistribution.Martinique += Number(quantity) || 0;
+          } else if (deptLower.includes('guadeloupe') || dept === '971') {
+            summaryData.departmentDistribution.Guadeloupe += Number(quantity) || 0;
+          } else if (deptLower.includes('guyane') || dept === '973') {
+            summaryData.departmentDistribution.Guyane += Number(quantity) || 0;
+          } else if (deptLower.includes('réunion') || deptLower.includes('reunion') || dept === '974') {
+            summaryData.departmentDistribution.Réunion += Number(quantity) || 0;
+          }
+        });
+
+        setSummary(summaryData);
+        setJsonData(null); // Vider le JSON affiché
+        setFileName('');
+        
         setStatus({ 
           type: 'success', 
-          message: `✅ Données envoyées avec succès! Réponse du serveur: "${responseText}"` 
+          message: `✅ Données envoyées avec succès! ${dataArray.length} lignes traitées.` 
         });
       } else {
         setStatus({ 
@@ -184,17 +249,79 @@ const ExcelToJsonConverter: React.FC = () => {
               </div>
             )}
 
+            {/* Résumé après envoi */}
+            {summary && !jsonData && (
+              <div className="space-y-4 animate-fade-in">
+                <Card className="p-6 bg-green-50 border-green-200">
+                  <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Résumé de l'envoi
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">Total des quantités</p>
+                      <p className="text-2xl font-bold text-gray-800">{summary.totalQuantity.toLocaleString('fr-FR')}</p>
+                    </div>
+                    
+                    <div className="bg-white p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">Lignes traitées</p>
+                      <p className="text-2xl font-bold text-gray-800">{summary.rowsProcessed}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      Répartition par département
+                    </h4>
+                    <div className="space-y-2">
+                      {Object.entries(summary.departmentDistribution).map(([dept, qty]) => (
+                        <div key={dept} className="flex justify-between items-center bg-white px-3 py-2 rounded">
+                          <span className="text-sm font-medium text-gray-700">{dept}</span>
+                          <span className="text-sm font-bold text-gray-900">{qty.toLocaleString('fr-FR')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {summary.details.length > 0 && (
+                    <details className="mt-4">
+                      <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                        Voir le détail des lignes ({summary.details.length} lignes)
+                      </summary>
+                      <div className="mt-2 max-h-40 overflow-y-auto bg-white rounded p-3">
+                        <pre className="text-xs text-gray-600">{JSON.stringify(summary.details, null, 2)}</pre>
+                      </div>
+                    </details>
+                  )}
+                </Card>
+
+                <Button
+                  onClick={() => {
+                    setSummary(null);
+                    setStatus({ type: null, message: '' });
+                  }}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Nouvelle importation
+                </Button>
+              </div>
+            )}
+
             {/* Bouton de test webhook */}
-            {!jsonData && (
+            {!jsonData && !summary && (
               <div className="text-center pt-4">
                 <Button
                   onClick={async () => {
-                    const testData = {
-                      test: true,
-                      timestamp: new Date().toISOString(),
-                      message: "Test direct depuis l'interface",
-                      data: [{ nom: "Test", valeur: 123 }]
-                    };
+                    const testData = [
+                      { nom: "Vélo cargo 1", quantité: 5, département: "Martinique", modèle: "Urban Arrow" },
+                      { nom: "Vélo cargo 2", quantité: 3, département: "Guadeloupe", modèle: "Babboe" },
+                      { nom: "Vélo cargo 3", quantité: 2, département: "Martinique", modèle: "Riese & Müller" },
+                      { nom: "Vélo cargo 4", quantité: 4, département: "Guyane", modèle: "Urban Arrow" },
+                      { nom: "Vélo cargo 5", quantité: 1, département: "Réunion", modèle: "Bakfiets" }
+                    ];
                     
                     setJsonData(testData);
                     setFileName("test-direct.json");
