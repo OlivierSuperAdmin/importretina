@@ -53,23 +53,46 @@ const ExcelToJsonConverter: React.FC = () => {
     setLoading(true);
     setStatus({ type: null, message: '' });
 
+    // Préparer les données avec métadonnées
+    const payload = {
+      timestamp: new Date().toISOString(),
+      fileName: fileName,
+      dataCount: Array.isArray(jsonData) ? jsonData.length : Object.keys(jsonData).length,
+      data: jsonData
+    };
+
+    console.log('📤 Envoi au webhook...');
+    console.log('Payload:', payload);
+
     try {
       const response = await fetch('https://hook.eu2.make.com/muvnq1jhdngry75l2g5oy9jid6u4e1v0', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(jsonData),
+        body: JSON.stringify(payload),
       });
 
+      const responseText = await response.text();
+      console.log('📨 Réponse:', response.status, responseText);
+
       if (response.ok) {
-        setStatus({ type: 'success', message: 'Données envoyées avec succès au webhook!' });
+        setStatus({ 
+          type: 'success', 
+          message: `✅ Données envoyées avec succès! Réponse du serveur: "${responseText}"` 
+        });
       } else {
-        setStatus({ type: 'error', message: `Erreur lors de l'envoi: ${response.status} ${response.statusText}` });
+        setStatus({ 
+          type: 'error', 
+          message: `❌ Erreur lors de l'envoi: ${response.status} ${response.statusText}. Réponse: ${responseText}` 
+        });
       }
     } catch (error) {
-      console.error('Erreur lors de l\'envoi:', error);
-      setStatus({ type: 'error', message: 'Erreur de connexion au webhook' });
+      console.error('❌ Erreur lors de l\'envoi:', error);
+      setStatus({ 
+        type: 'error', 
+        message: `❌ Erreur de connexion au webhook: ${error instanceof Error ? error.message : 'Erreur inconnue'}` 
+      });
     } finally {
       setLoading(false);
     }
@@ -138,23 +161,49 @@ const ExcelToJsonConverter: React.FC = () => {
                   <pre className="text-sm">{JSON.stringify(jsonData, null, 2)}</pre>
                 </div>
 
+                <div className="flex gap-3">
+                  <Button
+                    onClick={sendToWebhook}
+                    disabled={loading}
+                    className="flex-1 gap-2"
+                    size="lg"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Envoi en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        Envoyer sur le webhook
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Bouton de test webhook */}
+            {!jsonData && (
+              <div className="text-center pt-4">
                 <Button
-                  onClick={sendToWebhook}
-                  disabled={loading}
-                  className="w-full gap-2"
-                  size="lg"
+                  onClick={async () => {
+                    const testData = {
+                      test: true,
+                      timestamp: new Date().toISOString(),
+                      message: "Test direct depuis l'interface",
+                      data: [{ nom: "Test", valeur: 123 }]
+                    };
+                    
+                    setJsonData(testData);
+                    setFileName("test-direct.json");
+                  }}
+                  variant="outline"
+                  className="gap-2"
                 >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Envoi en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      Envoyer sur le webhook
-                    </>
-                  )}
+                  <AlertCircle className="w-4 h-4" />
+                  Tester le webhook avec des données exemple
                 </Button>
               </div>
             )}
