@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: velos-cargo-cee
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.20.5
+    staticPublishPath: ./dist

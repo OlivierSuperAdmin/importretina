@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "npm run lint:types && npm run lint:js && npm run lint:css && npm run check:css-vars && npm run check:css-classes",
     "preview": "vite preview",
-    "start": "serve -s dist",
+    "start": "serve -s dist -l $PORT",
     "lint:css": "stylelint \"src/**/*.css\" --fix --quiet",
     "lint:js": "eslint . --ext ts,tsx --report-unused-disable-directives --format stylish --color",
     "lint:types": "tsc --noEmit",
