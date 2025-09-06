@@ -1,7 +1,7 @@
-import ExcelToJsonConverter from './components/ExcelToJsonConverter';
+import MainApp from './components/MainApp';
 
 function App() {
-  return <ExcelToJsonConverter />;
+  return <MainApp />;
 }
 
 export default App;
